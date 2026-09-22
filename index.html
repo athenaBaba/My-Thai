@@ -999,6 +999,9 @@ for (var retry = 0; retry < 3; retry++) {
   init();
 })();
 </script>
+
+<script type="module">
+
 import { initializeApp }
 from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
 
@@ -1015,85 +1018,10 @@ import {
 }
 from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
 
-import {
-  getFirestore,
-  collection,
-  addDoc,
-  getDocs,
-  deleteDoc,
-  doc
-}
-from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
+/* Firebase 程式 */
 
-const firebaseConfig = {
-  apiKey: "AIzaSyDPqfekQZ9Ap1qTkCAY8Dx35EVFX7Ke5CQ",
-  authDomain: "my-thai-e2467.firebaseapp.com",
-  projectId: "my-thai-e2467",
-  storageBucket: "my-thai-e2467.firebasestorage.app",
-  messagingSenderId: "68674626773",
-  appId: "1:68674626773:web:043785570308fd4a88ae5c",
-  measurementId: "G-THE404YG6F"
-};
-
-const app = initializeApp(firebaseConfig);
-
-const db = getFirestore(app);
-
-const auth = getAuth(app);
-
-const provider = new GoogleAuthProvider();
-
-window.db = db;
-window.firebaseAuth = getAuth(app);
-window.firebaseDb = getFirestore(app);
-document
-  .getElementById("googleLoginBtn")
-  .addEventListener("click", async () => {
-
-    try {
-
-      await signInWithPopup(
-        auth,
-        provider
-      );
-
-    } catch (err) {
-
-      console.error(err);
-      alert("Google 登入失敗");
-
-    }
-
-});
-onAuthStateChanged(auth, (user) => {
-
-  if (user) {
-
-    console.log("登入成功");
-    console.log(user.displayName);
-
-    document
-      .getElementById("loginPage")
-      .style.display = "none";
-
-    document
-      .getElementById("app")
-      .style.display = "block";
-
-  } else {
-
-    document
-      .getElementById("loginPage")
-      .style.display = "flex";
-
-    document
-      .getElementById("app")
-      .style.display = "none";
-
-  }
-
-});
-console.log("Firebase 已連線");
 </script>
+
+</body>
 </body>
 </html>
