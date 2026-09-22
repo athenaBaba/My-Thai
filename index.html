@@ -1041,7 +1041,25 @@ const provider = new GoogleAuthProvider();
 window.db = db;
 window.firebaseAuth = getAuth(app);
 window.firebaseDb = getFirestore(app);
+document
+  .getElementById("googleLoginBtn")
+  .addEventListener("click", async () => {
 
+    try {
+
+      await signInWithPopup(
+        auth,
+        provider
+      );
+
+    } catch (err) {
+
+      console.error(err);
+      alert("Google 登入失敗");
+
+    }
+
+});
 console.log("Firebase 已連線");
 </script>
 </body>
