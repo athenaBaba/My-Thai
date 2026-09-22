@@ -1103,8 +1103,6 @@ onAuthStateChanged(auth, (user) => {
 
     window.currentUid = user.uid;
 
-    await testSave();
-
     console.log(
       "登入成功：",
       user.displayName
