@@ -1039,6 +1039,40 @@ console.log("Firebase 已連線");
 
 window.testSave = async function(){
 
+  try{
+
+    await addDoc(
+
+      collection(
+        db,
+        "users",
+        window.currentUid,
+        "vocab"
+      ),
+
+      {
+        thai: "ทดสอบ",
+        mandarin: "測試",
+        createdAt: Date.now()
+      }
+
+    );
+
+    alert("Firestore寫入成功");
+
+  }catch(err){
+
+    alert(
+      "Firestore失敗：" +
+      err.message
+    );
+
+    console.error(err);
+
+  }
+
+};
+
   await addDoc(
 
     collection(
