@@ -60,13 +60,18 @@
 
   /* ---- top bar ---- */
   .topbar{
-    display:flex; align-items:baseline; justify-content:space-between;
+    display:flex; align-items:center; justify-content:space-between;
     padding:20px 20px 14px;
     position:sticky; top:0; z-index:5;
     background:var(--bg);
   }
   .topbar .word-th{font-size:26px; font-weight:600; letter-spacing:.02em;}
+  .topbar-right{display:flex; align-items:center; gap:10px;}
   .topbar .word-zh{font-size:13px; color:var(--ink-soft); font-weight:500;}
+  .settings-btn{
+    background:none; border:none; font-size:18px; color:var(--ink-soft);
+    padding:4px 4px; line-height:1;
+  }
 
   main{flex:1; overflow-x:hidden; padding:0 20px 100px;}
 
@@ -104,7 +109,8 @@
   }
   .add-form input.th{font-size:18px;}
   .add-form input:focus{outline:2px solid var(--brand); outline-offset:1px;}
-  .add-form .hint{font-size:12px; color:var(--ink-faint); margin-top:2px;}
+  .add-form .hint{font-size:12px; color:var(--ink-faint); margin-top:2px; line-height:1.6;}
+  .add-form .hint a{color:var(--brand); font-weight:600;}
 
   .section-label{
     font-size:13px; color:var(--ink-soft); font-weight:600; margin:4px 0 10px;
@@ -232,7 +238,7 @@
   }
   .fab:active{transform:scale(.94);}
 
-  /* ---- add-word modal ---- */
+  /* ---- modal sheet (shared: add-word / settings) ---- */
   .modal-backdrop{
     position:fixed; inset:0; background:rgba(10,20,18,.45);
     z-index:20; display:flex; align-items:flex-end; justify-content:center;
@@ -260,7 +266,10 @@
     <div>
       <div class="word-th th">คำ</div>
     </div>
-    <div class="word-zh zh" id="topbar-sub">泰語詞彙學習</div>
+    <div class="topbar-right">
+      <div class="word-zh zh" id="topbar-sub">泰語詞彙學習</div>
+      <button id="settings-btn" class="settings-btn" aria-label="設定">⚙</button>
+    </div>
   </div>
 
   <main id="main"></main>
@@ -279,24 +288,28 @@
 (function(){
   "use strict";
 
+  // ---------------- config ----------------
+  var GEMINI_MODEL = "gemini-2.5-flash";
+  var LS_VOCAB = "kham_vocab_v1";
+  var LS_SENT = "kham_sentences_v1";
+  var LS_KEY = "kham_gemini_api_key";
+
   var state = {
     view: "vocab",
-    uid: null,
-    db: null,
-    sample: null,
-    userCap: null,
     ready: false,
-    persistWarning: false,
+    geminiApiKey: "",
     vocab: [],       // {id, thai, english, mandarin, createdAt}
-    sentences: [],   // {id, thai, mandarin, tokens[], tokenEnglish[], wordsUsed[], status, correctStreak, wrongCount, totalAttempts}
+    sentences: [],   // {id, thai, mandarin, tokens[], tokenEnglish[], wordsUsed[], status, correctStreak, wrongCount, totalAttempts, createdAt}
     queue: [],        // array of sentence ids for this practice session
     current: null,    // active sentence object
     tileBank: [],     // [{text, english, used}]
     buildZone: [],    // [{text, english, bankIndex}]
     checking: false,
     generating: false,
-    feedback: null,   // {correct, correctText, correctEnglish, note}
+    genError: null,
+    feedback: null,   // {correct, correctText, note}
     showAddModal: false,
+    showSettingsModal: false,
   };
 
   function $(sel, root){ return (root||document).querySelector(sel); }
@@ -321,84 +334,103 @@
     }
     return a;
   }
-
-  // ---------------- capability init ----------------
-  function useCap(name){
-    var capPromise = (window.claude && window.claude.use) ? window.claude.use(name) : Promise.resolve(null);
-    var timeout = new Promise(function(resolve){ setTimeout(function(){ resolve(null); }, 12000); });
-    return Promise.race([capPromise, timeout]).catch(function(){ return null; });
+  function uid(prefix){
+    return prefix + "_" + Date.now() + "_" + Math.random().toString(36).slice(2,9);
   }
 
-  async function init(){
-    try{
-      try{
-        var user = await useCap("user");
-        state.userCap = user;
-        state.uid = user ? await user.id() : null;
-      }catch(e){ state.uid = null; }
+  // ---------------- local storage ----------------
+  function loadState(){
+    try{ state.vocab = JSON.parse(localStorage.getItem(LS_VOCAB) || "[]"); }
+    catch(e){ state.vocab = []; }
+    try{ state.sentences = JSON.parse(localStorage.getItem(LS_SENT) || "[]"); }
+    catch(e){ state.sentences = []; }
+    try{ state.geminiApiKey = localStorage.getItem(LS_KEY) || ""; }
+    catch(e){ state.geminiApiKey = ""; }
+  }
+  function saveVocab(){
+    try{ localStorage.setItem(LS_VOCAB, JSON.stringify(state.vocab)); }
+    catch(e){ console.error("saveVocab failed", e); }
+  }
+  function saveSentences(){
+    try{ localStorage.setItem(LS_SENT, JSON.stringify(state.sentences)); }
+    catch(e){ console.error("saveSentences failed", e); }
+  }
+  function saveApiKey(key){
+    state.geminiApiKey = key || "";
+    try{ localStorage.setItem(LS_KEY, state.geminiApiKey); }
+    catch(e){ console.error("saveApiKey failed", e); }
+  }
+  function getApiKey(){ return state.geminiApiKey || ""; }
 
-      try{ state.db = await useCap("db"); }catch(e){ state.db = null; }
-      try{ state.sample = await useCap("sample"); }catch(e){ state.sample = null; }
+  function init(){
+    loadState();
+    state.ready = true;
+    render();
+  }
 
-      if (!state.db || !state.uid){
-        state.persistWarning = true;
-      } else {
-        try{ subscribeData(); }
-        catch(e){ console.error("subscribeData failed", e); state.db = null; state.persistWarning = true; }
-      }
-    }catch(e){
-      console.error("init failed unexpectedly", e);
-      state.persistWarning = true;
-    }finally{
-      state.ready = true;
-      render();
+  // ---------------- Gemini API ----------------
+  async function callGemini(prompt){
+    var apiKey = getApiKey();
+    if (!apiKey) throw new Error("尚未設定 API 金鑰");
+
+    var url = "https://generativelanguage.googleapis.com/v1beta/models/" +
+      GEMINI_MODEL + ":generateContent?key=" + encodeURIComponent(apiKey);
+
+    var resp = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          responseMimeType: "application/json",
+          temperature: 0.9
+        }
+      })
+    });
+
+    if (!resp.ok){
+      var errBody = "";
+      try{ errBody = await resp.text(); }catch(e2){}
+      throw new Error("Gemini API 錯誤 (" + resp.status + ")" + (errBody ? ": " + errBody.slice(0,200) : ""));
     }
-  }
 
-  function base(){ return "data/users/" + state.uid; }
+    var data = await resp.json();
+    var text = data && data.candidates && data.candidates[0] &&
+      data.candidates[0].content && data.candidates[0].content.parts &&
+      data.candidates[0].content.parts[0] && data.candidates[0].content.parts[0].text;
 
-  function subscribeData(){
-    state.db.collection(base() + "/vocab").orderBy("createdAt","desc").onSnapshot(function(snap){
-      state.vocab = snap.docs.map(function(d){ var o=d.data(); o.id=d.id; return o; });
-      render();
-    }, function(err){ console.error("vocab sub error", err); });
+    if (typeof text !== "string" || !text.trim()){
+      throw new Error("Gemini 沒有回傳任何內容");
+    }
 
-    state.db.collection(base() + "/sentences").onSnapshot(function(snap){
-      state.sentences = snap.docs.map(function(d){ var o=d.data(); o.id=d.id; return o; });
-      render();
-    }, function(err){ console.error("sentences sub error", err); });
+    var cleaned = text.trim()
+      .replace(/^```json\s*/i, "")
+      .replace(/^```\s*/, "")
+      .replace(/```\s*$/, "")
+      .trim();
+
+    return JSON.parse(cleaned);
   }
 
   // ---------------- vocab actions ----------------
-  var localVocabSeq = 0, localSentSeq = 0;
-
-  async function addVocab(thai, english, mandarin){
+  function addVocab(thai, english, mandarin){
     thai = thai.trim(); english = english.trim(); mandarin = mandarin.trim();
     if (!thai || !mandarin) return;
-    var doc = { thai: thai, english: english, mandarin: mandarin, createdAt: Date.now() };
-    if (state.db && state.uid){
-      try{
-        await state.db.collection(base() + "/vocab").add(doc);
-      }catch(e){ console.error("add vocab failed", e); }
-    } else {
-      doc.id = "local-v" + (localVocabSeq++);
-      state.vocab.unshift(doc);
-      render();
-    }
+    var doc = { id: uid("v"), thai: thai, english: english, mandarin: mandarin, createdAt: Date.now() };
+    state.vocab.unshift(doc);
+    saveVocab();
+    render();
   }
 
-  async function deleteVocab(id){
-    if (state.db && state.uid){
-      try{ await state.db.doc(base() + "/vocab/" + id).delete(); }catch(e){ console.error(e); }
-    } else {
-      state.vocab = state.vocab.filter(function(v){ return v.id !== id; });
-      render();
-    }
+  function deleteVocab(id){
+    state.vocab = state.vocab.filter(function(v){ return v.id !== id; });
+    saveVocab();
+    render();
   }
 
   // ---------------- sentence generation ----------------
   async function generateSentences(){
-    if (!state.sample || state.vocab.length === 0 || state.generating) return;
+    if (!getApiKey() || state.vocab.length === 0 || state.generating) return;
     state.generating = true; state.genError = null; render();
 
     var count = Math.max(3, Math.min(6, state.vocab.length));
@@ -416,8 +448,8 @@
       '"wordsUsed": ["本句中用到的、且出現在學習者詞表中的泰語單字"]}';
 
     try{
-      var result = await state.sample.json(prompt, { modelTier: "default", cache: false });
-      if (!Array.isArray(result)) throw new Error("not array");
+      var result = await callGemini(prompt);
+      if (!Array.isArray(result)) throw new Error("Gemini 回傳格式不是陣列");
 
       for (var i=0;i<result.length;i++){
         var s = result[i];
@@ -426,21 +458,18 @@
         var tokEnglish = s.tokens.map(function(t){ return (t && t.english) ? t.english : ""; });
         if (tokThai.join("") !== s.thai) continue; // integrity check
         var doc = {
+          id: uid("s"),
           thai: s.thai, mandarin: s.mandarin, tokens: tokThai, tokenEnglish: tokEnglish,
           wordsUsed: Array.isArray(s.wordsUsed) ? s.wordsUsed : [],
           status: "new", correctStreak: 0, wrongCount: 0, totalAttempts: 0,
           createdAt: Date.now()
         };
-        if (state.db && state.uid){
-          await state.db.collection(base() + "/sentences").add(doc);
-        } else {
-          doc.id = "local-s" + (localSentSeq++);
-          state.sentences.push(doc);
-        }
+        state.sentences.push(doc);
       }
+      saveSentences();
     }catch(e){
       console.error("generation failed", e);
-      state.genError = (e && e.code) ? e.code : "error";
+      state.genError = (e && e.message) ? e.message : "產生失敗";
     }
     state.generating = false;
     buildQueueIfNeeded(true);
@@ -453,11 +482,6 @@
     var pending = state.sentences.filter(function(s){ return s.status !== "mastered"; }).map(function(s){ return s.id; });
     state.queue = shuffle(pending);
     setupCurrentCard();
-  }
-
-  function englishForThai(thaiWord){
-    var hit = state.vocab.filter(function(v){ return v.thai === thaiWord; })[0];
-    return hit ? (hit.english || "") : "";
   }
 
   function setupCurrentCard(){
@@ -520,9 +544,9 @@
 
     state.checking = true; render();
 
-    if (!state.sample){
+    if (!getApiKey()){
       state.checking = false;
-      return finalizeResult(false, "AI 校驗不可用，已使用精確比對判斷。");
+      return finalizeResult(false, "尚未設定 Gemini API 金鑰，已使用精確比對判斷。");
     }
 
     var prompt = "泰語學習者需要把中文句子翻譯成泰語,用詞塊拼出答案。\n" +
@@ -533,17 +557,17 @@
       "只回覆一個JSON物件,不要有其他文字，說明文字須使用繁體中文：{\"correct\": true或false, \"feedback\": \"不超過25個繁體中文字的簡短說明\"}";
 
     try{
-      var result = await state.sample.json(prompt, { modelTier: "quick", cache: false });
+      var result = await callGemini(prompt);
       state.checking = false;
       finalizeResult(!!result.correct, result.feedback || (result.correct ? "回答正確！" : "再檢查一下語序。"));
     }catch(e){
       state.checking = false;
-      var msg = "AI 校驗暫時不可用，已按精確比對判定為需要再練習一次。";
+      var msg = "AI 校驗暫時不可用（" + ((e && e.message) ? e.message : "未知錯誤") + "），已判定為需要再練習一次。";
       finalizeResult(false, msg);
     }
   }
 
-  async function finalizeResult(correct, note){
+  function finalizeResult(correct, note){
     var s = state.current;
     var patch = { totalAttempts: (s.totalAttempts||0) + 1 };
     if (correct){
@@ -555,10 +579,7 @@
       patch.status = "retry";
     }
     Object.assign(s, patch);
-
-    if (state.db && state.uid){
-      try{ await state.db.doc(base() + "/sentences/" + s.id).update(patch); }catch(e){ console.error(e); }
-    }
+    saveSentences();
 
     state.queue.shift();
     if (!correct){
@@ -587,7 +608,7 @@
     if (!state.ready){
       main.appendChild(el("div", {class:"empty"}, [
         el("span", {class:"glyph", text:"…"}),
-        el("p", {class:"zh", text:"正在連接..."})
+        el("p", {class:"zh", text:"正在載入..."})
       ]));
       return;
     }
@@ -603,21 +624,27 @@
   }
 
   function openAddModal(){
-    state.showAddModal = true;
+    state.showAddModal = true; state.showSettingsModal = false;
     render();
     var t = $("#modal-thai-input");
     if (t) t.focus();
   }
-  function closeAddModal(){
-    state.showAddModal = false;
+  function closeAddModal(){ state.showAddModal = false; render(); }
+
+  function openSettingsModal(){
+    state.showSettingsModal = true; state.showAddModal = false;
     render();
   }
+  function closeSettingsModal(){ state.showSettingsModal = false; render(); }
 
   function renderModal(){
     var root = $("#modal-root");
     root.innerHTML = "";
-    if (!state.showAddModal) return;
+    if (state.showAddModal) renderAddModal(root);
+    else if (state.showSettingsModal) renderSettingsModal(root);
+  }
 
+  function renderAddModal(root){
     var backdrop = el("div", {class:"modal-backdrop"});
     backdrop.addEventListener("click", function(e){ if (e.target === backdrop) closeAddModal(); });
 
@@ -659,16 +686,48 @@
     root.appendChild(backdrop);
   }
 
-  function renderBanner(main){
-    if (state.persistWarning){
-      main.appendChild(el("div", {class:"banner zh",
-        text:"當前環境未連接保存功能，資料僅在本次會話中有效，重新整理後會遺失。"}));
+  function renderSettingsModal(root){
+    var backdrop = el("div", {class:"modal-backdrop"});
+    backdrop.addEventListener("click", function(e){ if (e.target === backdrop) closeSettingsModal(); });
+
+    var sheet = el("div", {class:"sheet"});
+    sheet.appendChild(el("div", {class:"sheet-handle"}));
+
+    var head = el("div", {class:"sheet-head"}, [
+      el("h3", {class:"zh", text:"Gemini API 設定"})
+    ]);
+    var closeBtn = el("button", {class:"sheet-close", html:"&times;"});
+    closeBtn.addEventListener("click", closeSettingsModal);
+    head.appendChild(closeBtn);
+    sheet.appendChild(head);
+
+    var form = el("div", {class:"add-form"});
+    var row = el("div", {class:"row"});
+    var keyInput = el("input", {class:"en", type:"text", placeholder:"貼上你的 Gemini API 金鑰", value: state.geminiApiKey || ""});
+    row.appendChild(keyInput);
+    form.appendChild(row);
+    form.appendChild(el("div", {class:"hint zh",
+      html:'金鑰只會儲存在你這台裝置的瀏覽器中，不會上傳到任何伺服器。尚未取得金鑰？前往 <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">Google AI Studio</a> 免費申請。'}));
+
+    var saveBtn = el("button", {class:"btn btn-brand zh", text:"儲存金鑰", style:"margin-top:14px;"});
+    saveBtn.addEventListener("click", function(){
+      saveApiKey(keyInput.value.trim());
+      closeSettingsModal();
+    });
+    form.appendChild(saveBtn);
+
+    if (state.geminiApiKey){
+      var clearBtn = el("button", {class:"btn btn-ghost zh", text:"清除金鑰", style:"margin-top:10px;"});
+      clearBtn.addEventListener("click", function(){ saveApiKey(""); closeSettingsModal(); });
+      form.appendChild(clearBtn);
     }
+
+    sheet.appendChild(form);
+    backdrop.appendChild(sheet);
+    root.appendChild(backdrop);
   }
 
   function renderVocab(main){
-    renderBanner(main);
-
     if (state.vocab.length === 0){
       main.appendChild(el("div", {class:"empty", style:"margin-top:16vh;"}, [
         el("span", {class:"glyph th", text:"คำ"}),
@@ -700,14 +759,15 @@
   }
 
   function renderPractice(main){
-    renderBanner(main);
-
-    if (!state.sample){
+    if (!getApiKey()){
       main.appendChild(el("div", {class:"empty"}, [
         el("span", {class:"glyph", text:"AI"}),
-        el("h2", {class:"zh", text:"AI 功能無法使用"}),
-        el("p", {class:"zh", text:"此預覽環境未開啟 AI 出題與批改功能，請在 claude.ai 中開啟此頁面以使用完整的練習功能。"})
+        el("h2", {class:"zh", text:"尚未設定 Gemini API 金鑰"}),
+        el("p", {class:"zh", text:"請先設定 Gemini API 金鑰，才能使用 AI 出題與批改功能。"})
       ]));
+      var setBtn = el("button", {class:"btn btn-accent zh", text:"前往設定"});
+      setBtn.addEventListener("click", openSettingsModal);
+      main.appendChild(setBtn);
       return;
     }
 
@@ -735,7 +795,7 @@
       genBtn.addEventListener("click", generateSentences);
       main.appendChild(genBtn);
       if (state.genError){
-        main.appendChild(el("div", {class:"hint zh", style:"text-align:center;margin-top:10px;color:var(--danger);", text:"產生失敗，請再試一次。"}));
+        main.appendChild(el("div", {class:"hint zh", style:"text-align:center;margin-top:10px;color:var(--danger);", text:"產生失敗：" + state.genError}));
       }
       return;
     }
@@ -812,8 +872,6 @@
   }
 
   function renderProgress(main){
-    renderBanner(main);
-
     var mastered = state.sentences.filter(function(s){ return s.status === "mastered"; }).length;
     var totalAttempts = state.sentences.reduce(function(a,s){ return a + (s.totalAttempts||0); }, 0);
     var totalWrong = state.sentences.reduce(function(a,s){ return a + (s.wrongCount||0); }, 0);
@@ -851,8 +909,9 @@
     main.appendChild(list);
   }
 
-  // ---------------- fab wiring ----------------
+  // ---------------- fab / settings wiring ----------------
   $("#fab").addEventListener("click", openAddModal);
+  $("#settings-btn").addEventListener("click", openSettingsModal);
 
   // ---------------- tab wiring ----------------
   document.querySelectorAll(".tabbar button").forEach(function(btn){
