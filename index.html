@@ -1037,6 +1037,29 @@ const provider = new GoogleAuthProvider();
 
 console.log("Firebase 已連線");
 
+window.testSave = async function(){
+
+  await addDoc(
+
+    collection(
+      db,
+      "users",
+      window.currentUid,
+      "vocab"
+    ),
+
+    {
+      thai: "ทดสอบ",
+      mandarin: "測試",
+      createdAt: Date.now()
+    }
+
+  );
+
+  alert("Firestore寫入成功");
+
+};
+
 document
   .getElementById("googleLoginBtn")
   .addEventListener("click", async () => {
