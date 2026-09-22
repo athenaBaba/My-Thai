@@ -1031,10 +1031,14 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
+
 const db = getFirestore(app);
 
+const auth = getAuth(app);
+
+const provider = new GoogleAuthProvider();
+
 window.db = db;
-``
 window.firebaseAuth = getAuth(app);
 window.firebaseDb = getFirestore(app);
 
