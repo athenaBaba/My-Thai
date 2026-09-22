@@ -376,17 +376,34 @@
     var url = "https://generativelanguage.googleapis.com/v1beta/models/" +
       GEMINI_MODEL + ":generateContent?key=" + encodeURIComponent(apiKey);
 
-    var resp = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          responseMimeType: "application/json",
-          temperature: 0.9
-        }
-      })
-    });
+var resp;
+
+for (var retry = 0; retry < 3; retry++) {
+
+  resp = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: {
+        responseMimeType: "application/json",
+        temperature: 0.9
+      }
+    })
+  });
+
+  if (resp.ok) {
+    break;
+  }
+
+  if (resp.status !== 503) {
+    break;
+  }
+
+  await new Promise(function(resolve){
+    setTimeout(resolve, 3000);
+  });
+}
 
     if (!resp.ok){
       var errBody = "";
