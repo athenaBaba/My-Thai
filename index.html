@@ -1060,6 +1060,10 @@ const auth = getAuth(app);
 
 const db = getFirestore(app);
 
+window.firestoreDb = db;
+window.firestoreAddDoc = addDoc;
+window.firestoreCollection = collection;
+
 const provider = new GoogleAuthProvider();
 
 console.log("Firebase 已連線");
