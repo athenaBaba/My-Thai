@@ -493,6 +493,28 @@ for (var retry = 0; retry < 3; retry++) {
     var doc = { id: uid("v"), thai: thai, english: english, mandarin: mandarin, createdAt: Date.now() };
     state.vocab.unshift(doc);
     saveVocab();
+
+    if (window.currentUid) {
+    
+    addDoc(
+
+    collection(
+      db,
+      "users",
+      window.currentUid,
+      "vocab"
+    ),
+
+    {
+      thai: thai,
+      english: english,
+      mandarin: mandarin,
+      createdAt: Date.now()
+    }
+
+  ).catch(console.error);
+
+}
     render();
   }
 
