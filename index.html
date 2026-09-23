@@ -1181,34 +1181,26 @@ document
 
 onAuthStateChanged(auth, (user) => {
 
-  if (user) {
+if (user) {
 
-    window.currentUid = user.uid;
-    
-    console.log(
-      "登入成功：",
-      user.displayName
-    );
+  window.currentUid = user.uid;
 
-    document
-      .getElementById("loginPage")
-      .style.display = "none";
+  console.log(
+    "登入成功：",
+    user.displayName
+  );
 
-    document
-      .getElementById("app")
-      .style.display = "block";
+  loadFirestoreVocab();
 
-  } else {
+  document
+    .getElementById("loginPage")
+    .style.display = "none";
 
-    document
-      .getElementById("loginPage")
-      .style.display = "flex";
+  document
+    .getElementById("app")
+    .style.display = "block";
 
-    document
-      .getElementById("app")
-      .style.display = "none";
-
-  }
+}
 
 });
 
