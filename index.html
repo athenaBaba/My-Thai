@@ -488,34 +488,54 @@ for (var retry = 0; retry < 3; retry++) {
 
   // ---------------- vocab actions ----------------
   function addVocab(thai, english, mandarin){
-    thai = thai.trim(); english = english.trim(); mandarin = mandarin.trim();
-    if (!thai || !mandarin) return;
-    var doc = { id: uid("v"), thai: thai, english: english, mandarin: mandarin, createdAt: Date.now() };
-    state.vocab.unshift(doc);
-    saveVocab();
 
-    if (window.currentUid) {
-    
-    addDoc(
+  thai = thai.trim();
+  english = english.trim();
+  mandarin = mandarin.trim();
 
-    collection(
-      db,
-      "users",
-      window.currentUid,
-      "vocab"
-    ),
+  if (!thai || !mandarin) return;
 
-    {
-      thai: thai,
-      english: english,
-      mandarin: mandarin,
-      createdAt: Date.now()
-    }
+  var doc = {
+    id: uid("v"),
+    thai: thai,
+    english: english,
+    mandarin: mandarin,
+    createdAt: Date.now()
+  };
 
-  ).catch(console.error);
+  state.vocab.unshift(doc);
 
+  saveVocab();
+
+  if (
+    window.currentUid &&
+    window.firestoreDb &&
+    window.firestoreAddDoc &&
+    window.firestoreCollection
+  ) {
+
+    window.firestoreAddDoc(
+
+      window.firestoreCollection(
+        window.firestoreDb,
+        "users",
+        window.currentUid,
+        "vocab"
+      ),
+
+      {
+        thai: thai,
+        english: english,
+        mandarin: mandarin,
+        createdAt: Date.now()
+      }
+
+    ).catch(console.error);
+
+  }
+
+  render();
 }
-    render();
   }
 
   function deleteVocab(id){
