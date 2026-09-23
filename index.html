@@ -503,42 +503,38 @@ for (var retry = 0; retry < 3; retry++) {
     createdAt: Date.now()
   };
 
-  state.vocab.unshift(doc);
+state.vocab.unshift(doc);
 
-  saveVocab();
+saveVocab();
 
-  alert("addVocab執行中");
-    
-  if (
-    window.currentUid &&
-    window.firestoreDb &&
-    window.firestoreAddDoc &&
-    window.firestoreCollection
-  ) {
-
-  console.log("開始寫入 Firestore");
+if (
+  window.currentUid &&
+  window.firestoreDb &&
+  window.firestoreAddDoc &&
+  window.firestoreCollection
+) {
 
   window.firestoreAddDoc(
 
-      window.firestoreCollection(
-        window.firestoreDb,
-        "users",
-        window.currentUid,
-        "vocab"
-      ),
+    window.firestoreCollection(
+      window.firestoreDb,
+      "users",
+      window.currentUid,
+      "vocab"
+    ),
 
-      {
-        thai: thai,
-        english: english,
-        mandarin: mandarin,
-        createdAt: Date.now()
-      }
+    {
+      thai: thai,
+      english: english,
+      mandarin: mandarin,
+      createdAt: Date.now()
+    }
 
-    ).catch(console.error);
+  ).catch(console.error);
 
-  }
+}
 
-  render();
+render();
 }
 
   function deleteVocab(id){
