@@ -1074,6 +1074,26 @@ window.testSave = async function(){
 
 };
 
+window.loadFirestoreVocab = async function(){
+
+  const snap = await getDocs(
+
+    collection(
+      db,
+      "users",
+      window.currentUid,
+      "vocab"
+    )
+
+  );
+
+  console.log(
+    "Firestore vocab數量:",
+    snap.size
+  );
+
+};
+
 document
   .getElementById("googleLoginBtn")
   .addEventListener("click", async () => {
