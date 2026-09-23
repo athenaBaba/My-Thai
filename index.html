@@ -508,13 +508,15 @@ for (var retry = 0; retry < 3; retry++) {
   saveVocab();
 
   if (
-    window.currentUid &&
-    window.firestoreDb &&
-    window.firestoreAddDoc &&
-    window.firestoreCollection
-  ) {
+  window.currentUid &&
+  window.firestoreDb &&
+  window.firestoreAddDoc &&
+  window.firestoreCollection
+) {
 
-    window.firestoreAddDoc(
+  console.log("開始寫入 Firestore");
+
+  window.firestoreAddDoc(
 
       window.firestoreCollection(
         window.firestoreDb,
