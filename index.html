@@ -539,10 +539,24 @@ render();
 }
 
   function deleteVocab(id){
-    state.vocab = state.vocab.filter(function(v){ return v.id !== id; });
-    saveVocab();
-    render();
+
+  state.vocab = state.vocab.filter(function(v){
+    return v.id !== id;
+  });
+
+  saveVocab();
+
+  if (
+    window.currentUid &&
+    window.firestoreDb
+  ) {
+
+    console.log("準備刪除 Firestore:", id);
+
   }
+
+  render();
+}
 
   // ---------------- sentence generation ----------------
   async function generateSentences(){
