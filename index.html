@@ -1151,7 +1151,13 @@ window.loadFirestoreVocab = async function(){
 
   });
 
-  console.log("Firestore vocab:", vocab);
+  if (window.appState && window.renderApp) {
+
+    window.appState.vocab = vocab;
+
+    window.renderApp();
+
+  }
 
 };
 
