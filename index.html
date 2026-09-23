@@ -367,6 +367,8 @@
     showSettingsModal: false,
   };
 
+  window.appState = state;
+
   function $(sel, root){ return (root||document).querySelector(sel); }
   function el(tag, attrs, children){
     var e = document.createElement(tag);
