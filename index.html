@@ -507,12 +507,17 @@ for (var retry = 0; retry < 3; retry++) {
 
   saveVocab();
 
+  console.log("currentUid=", window.currentUid);
+  console.log("firestoreDb=", !!window.firestoreDb);
+  console.log("firestoreAddDoc=", !!window.firestoreAddDoc);
+  console.log("firestoreCollection=", !!window.firestoreCollection);
+    
   if (
-  window.currentUid &&
-  window.firestoreDb &&
-  window.firestoreAddDoc &&
-  window.firestoreCollection
-) {
+    window.currentUid &&
+    window.firestoreDb &&
+    window.firestoreAddDoc &&
+    window.firestoreCollection
+  ) {
 
   console.log("開始寫入 Firestore");
 
