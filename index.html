@@ -547,13 +547,42 @@ render();
   saveVocab();
 
   if (
-    window.currentUid &&
-    window.firestoreDb
-  ) {
+  window.currentUid &&
+  window.firestoreDb
+) {
 
-    console.log("準備刪除 Firestore:", id);
+  window.firestoreGetDocs(
 
-  }
+    window.firestoreQuery(
+
+      window.firestoreCollection(
+        window.firestoreDb,
+        "users",
+        window.currentUid,
+        "vocab"
+      ),
+
+      window.firestoreWhere(
+        "localId",
+        "==",
+        id
+      )
+
+    )
+
+  ).then(function(snapshot){
+
+    snapshot.forEach(function(docSnap){
+
+      window.firestoreDeleteDoc(
+        docSnap.ref
+      );
+
+    });
+
+  }).catch(console.error);
+
+}
 
   render();
 }
