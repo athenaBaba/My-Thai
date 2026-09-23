@@ -1091,10 +1091,20 @@ window.loadFirestoreVocab = async function(){
 
   );
 
-  console.log(
-    "Firestore vocab數量:",
-    snap.size
-  );
+const vocab = [];
+
+snap.forEach((doc) => {
+
+  vocab.push({
+    id: doc.id,
+    ...doc.data()
+  });
+
+});
+
+window.appState.vocab = vocab;
+
+window.renderApp();
 
 };
 
