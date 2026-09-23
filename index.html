@@ -697,6 +697,8 @@ for (var retry = 0; retry < 3; retry++) {
     renderModal();
   }
 
+  window.renderApp = render;
+
   function openAddModal(){
     state.showAddModal = true; state.showSettingsModal = false;
     render();
