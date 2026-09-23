@@ -1140,20 +1140,18 @@ window.loadFirestoreVocab = async function(){
 
   );
 
-const vocab = [];
+  const vocab = [];
 
-snap.forEach((doc) => {
+  snap.forEach((doc) => {
 
-  vocab.push({
-    id: doc.id,
-    ...doc.data()
+    vocab.push({
+      id: doc.id,
+      ...doc.data()
+    });
+
   });
 
-});
-
-window.appState.vocab = vocab;
-
-window.renderApp();
+  console.log("Firestore vocab:", vocab);
 
 };
 
